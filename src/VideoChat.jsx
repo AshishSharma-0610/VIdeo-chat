@@ -115,21 +115,12 @@ export default VideoChat;
 
 import React, { useEffect, useState } from 'react';
 import './VideoChat.css';
-// Import the Gemini SDK
-import { GeminiClient } from 'gemini-sdk';
 
 const VideoChat = () => {
     const [transcript, setTranscript] = useState('');
-    const [interests, setInterests] = useState([]);
 
     useEffect(() => {
-        const deepgramApiKey = 'YOUR_DEEPGRAM_API_KEY'; // Replace with your actual Deepgram API key
-        const geminiApiKey = 'YOUR_GEMINI_API_KEY'; // Replace with your actual Gemini API key
-
-        // Initialize the Gemini client
-        const geminiClient = new GeminiClient({
-            apiKey: geminiApiKey,
-        });
+        const deepgramApiKey = '0c44b52bafab0a3f558d701ec304fd8f4b3dd7eb'; // Replace with your actual Deepgram API key
 
         let peerConnection = new RTCPeerConnection();
         let localStream;
@@ -184,14 +175,8 @@ const VideoChat = () => {
                             }
 
                             const data = await response.json();
-                            console.log('Deepgram API response:', data); // Log the full response
-                            if (data.results && data.results.channels && data.results.channels[0].alternatives && data.results.channels[0].alternatives[0]) {
-                                const { transcript } = data.results.channels[0].alternatives[0];
-                                setTranscript(transcript); // Update the UI with the transcription
-                                analyzeTranscript(transcript); // Analyze the transcript using the Gemini API
-                            } else {
-                                console.error('Unexpected Deepgram API response structure:', data);
-                            }
+                            const { transcript } = data.results.channels[0].alternatives[0];
+                            setTranscript(transcript); // Update the UI with the transcription
                         } catch (error) {
                             console.error('Error processing audio data:', error);
                         }
@@ -241,21 +226,6 @@ const VideoChat = () => {
             floatTo16BitPCM(view, 44, samples);
 
             return view;
-        };
-
-        const analyzeTranscript = async (transcript) => {
-            try {
-                // Replace this block with the Gemini API's request format
-                const response = await geminiClient.analyzeText({
-                    prompt: 'Extract interests from the following conversation.',
-                    text: transcript
-                });
-
-                const interestsResponse = response.data; // Adjust based on the actual response structure
-                setInterests(interestsResponse.split(',').map(interest => interest.trim()));
-            } catch (error) {
-                console.error('Error analyzing transcript with the Gemini API:', error);
-            }
         };
 
         const createOffer = async () => {
@@ -321,23 +291,20 @@ const VideoChat = () => {
             <div className="step">
                 <button id="create-answer">Create Answer</button>
             </div>
-            <textarea id="answer-sdp" placeholder='User 1, paste SDP answer here...'></textarea>
+            <textarea id="answer-sdp" placeholder="User 1, paste SDP answer here..."></textarea>
             <div className="step">
                 <button id="add-answer">Add Answer</button>
             </div>
-            <div>
-                <h3>Interests</h3>
-                <ul>
-                    {interests.map((interest, index) => (
-                        <li key={index}>{interest}</li>
-                    ))}
-                </ul>
+            <div className="transcript">
+                <h3>Transcription:</h3>
+                <p>{transcript}</p>
             </div>
         </div>
     );
 };
 
 export default VideoChat;
+
 
 
 
