@@ -113,30 +113,23 @@ export default VideoChat;
 
 
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import './VideoChat.css';
 
 const VideoChat = () => {
-    const [transcript, setTranscript] = useState('');
-
     useEffect(() => {
-        const deepgramApiKey = '0c44b52bafab0a3f558d701ec304fd8f4b3dd7eb'; // Replace with your actual Deepgram API key
-
         let peerConnection = new RTCPeerConnection();
         let localStream;
         let remoteStream;
 
         const init = async () => {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
             remoteStream = new MediaStream();
             document.getElementById('user-1').srcObject = localStream;
             document.getElementById('user-2').srcObject = remoteStream;
 
             localStream.getTracks().forEach((track) => {
                 peerConnection.addTrack(track, localStream);
-                if (track.kind === 'audio') {
-                    startTranscription(track);
-                }
             });
 
             peerConnection.ontrack = (event) => {
@@ -144,88 +137,6 @@ const VideoChat = () => {
                     remoteStream.addTrack(track);
                 });
             };
-        };
-
-        const startTranscription = async (audioTrack) => {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const source = audioContext.createMediaStreamSource(new MediaStream([audioTrack]));
-            const processor = audioContext.createScriptProcessor(4096, 1, 1);
-
-            processor.onaudioprocess = async (event) => {
-                try {
-                    const audioBuffer = event.inputBuffer.getChannelData(0);
-                    const wavData = encodeWAV(audioBuffer, audioContext.sampleRate);
-                    const audioBlob = new Blob([wavData], { type: 'audio/wav' });
-                    const reader = new FileReader();
-
-                    reader.onloadend = async () => {
-                        try {
-                            const audioArrayBuffer = reader.result;
-                            const response = await fetch('https://api.deepgram.com/v1/listen', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'audio/wav',
-                                    'Authorization': `Token ${deepgramApiKey}`
-                                },
-                                body: audioArrayBuffer
-                            });
-
-                            if (!response.ok) {
-                                throw new Error(`Deepgram API error: ${response.statusText}`);
-                            }
-
-                            const data = await response.json();
-                            const { transcript } = data.results.channels[0].alternatives[0];
-                            setTranscript(transcript); // Update the UI with the transcription
-                        } catch (error) {
-                            console.error('Error processing audio data:', error);
-                        }
-                    };
-
-                    reader.readAsArrayBuffer(audioBlob);
-                } catch (error) {
-                    console.error('Error during audio processing:', error);
-                }
-            };
-
-            source.connect(processor);
-            processor.connect(audioContext.destination);
-        };
-
-        const encodeWAV = (samples, sampleRate) => {
-            const buffer = new ArrayBuffer(44 + samples.length * 2);
-            const view = new DataView(buffer);
-
-            const writeString = (view, offset, string) => {
-                for (let i = 0; i < string.length; i++) {
-                    view.setUint8(offset + i, string.charCodeAt(i));
-                }
-            };
-
-            const floatTo16BitPCM = (output, offset, input) => {
-                for (let i = 0; i < input.length; i++, offset += 2) {
-                    const s = Math.max(-1, Math.min(1, input[i]));
-                    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-                }
-            };
-
-            writeString(view, 0, 'RIFF');
-            view.setUint32(4, 32 + samples.length * 2, true);
-            writeString(view, 8, 'WAVE');
-            writeString(view, 12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, 1, true);
-            view.setUint16(22, 1, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * 2, true);
-            view.setUint16(32, 2, true);
-            view.setUint16(34, 16, true);
-            writeString(view, 36, 'data');
-            view.setUint32(40, samples.length * 2, true);
-
-            floatTo16BitPCM(view, 44, samples);
-
-            return view;
         };
 
         const createOffer = async () => {
@@ -294,10 +205,6 @@ const VideoChat = () => {
             <textarea id="answer-sdp" placeholder="User 1, paste SDP answer here..."></textarea>
             <div className="step">
                 <button id="add-answer">Add Answer</button>
-            </div>
-            <div className="transcript">
-                <h3>Transcription:</h3>
-                <p>{transcript}</p>
             </div>
         </div>
     );
